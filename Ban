@@ -1,0 +1,44 @@
+-- Services abrufen
+local Players = game:GetService("Players")
+local TextChatService = game:GetService("TextChatService")
+
+-- Funktion zum Überprüfen des Spielerzugriffs
+local function isAuthorizedPlayer(player)
+    return player.Name == "NinjaKungPro"
+end
+
+-- Funktion zum Bannen von Spielern
+local function banPlayer(player)
+    if player then
+        player:Kick("You have been banned for exploiting.")
+        warn("Spieler " .. player.Name .. " wurde gebannt.")
+    end
+end
+
+-- Funktion zur Verarbeitung eingehender Nachrichten
+local function onMessageReceived(textChatMessage)
+    local textSource = textChatMessage.TextSource
+    if not textSource then
+        return
+    end
+
+    local senderPlayer = Players:GetPlayerByUserId(textSource.UserId)
+    if not senderPlayer or not isAuthorizedPlayer(senderPlayer) then
+        return
+    end
+
+    local message = textChatMessage.Text
+    if message:sub(1, 5) == "!ban " then
+        local targetName = message:sub(6):gsub("^%s*(.-)%s*$", "%1") -- Entfernt führende und nachfolgende Leerzeichen
+        local targetPlayer = Players:FindFirstChild(targetName)
+
+        if targetPlayer then
+            banPlayer(targetPlayer)
+        else
+            warn("Spieler mit dem Namen " .. targetName .. " nicht gefunden.")
+        end
+    end
+end
+
+-- Ereignis verbinden
+TextChatService.MessageReceived:Connect(onMessageReceived)
